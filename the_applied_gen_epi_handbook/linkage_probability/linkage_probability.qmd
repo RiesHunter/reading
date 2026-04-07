@@ -1,0 +1,237 @@
+---
+title: "How many mutations are enough to rule linkage out?"
+author: "Hunter Ries"
+format:
+  html:
+    embed-resources: true
+    code-fold: false
+echo: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+## Introduction
+
+When two pathogen genomes are separated by *k* mutations, how confident
+can we be that the cases are *directly linked* by transmission? This
+document explores that question by simulating pairs of linked and
+un-linked cases and computing the empirical probability P(directly
+linked \| *k* mutations) for each observed mutation count.
+
+The key insight is asymmetric: a *small* number of mutations cannot
+confirm linkage (many un-linked pairs also differ by few mutations when
+evolutionary rates are low), but a *large* number of mutations can
+effectively rule linkage out. This is because directly linked pairs are
+constrained by the serial interval, while un-linked pairs accumulate
+mutations over much longer divergence times.
+
+This document recapitulates Figures 3.5 and 3.6 from Alli Black's
+[*Applied Genomic Epidemiology Handbook*
+§3.7.1](https://alliblk.github.io/genepi-book/fundamental-theory-in-genomic-epidemiology.html#how-many-mutations-are-enough-to-rule-linkage-out),
+generalized so that pathogen parameters can be swapped easily via a
+single editable table.
+
+## Setup
+
+```{r}
+#| label: setup
+#| message: false
+library(tidyverse)
+set.seed(920674206)
+```
+
+## Pathogen parameters
+
+Edit this table to add or modify pathogens. Each row drives one
+simulation and plot.
+
+```{r}
+#| label: parameters
+pathogens <- tibble(
+  name              = c("pandemic H1N1",
+                        "SARS-CoV-2",
+                        "West Nile virus",
+                        "Mpox clade IIb",
+                        "HIV-1 (pol region)",
+                        "Influenza A H3N2"),
+  mu_subs_site_year = c(0.003406, 0.0008, 0.0005, 0.00006, 0.0025, 0.0045),
+  genome_length_nt  = c(13154,    29903,  11000,  197000,   9200,   13500),
+  si_mean_days      = c(3.0,      5.0,    14.0,   9.0,      60.0,   3.0),
+  si_sd_days        = c(1.0,      1.5,    4.0,    3.0,      30.0,   1.0)
+)
+# NOTE: West Nile virus is vector-borne — "serial interval" is a loose
+# approximation (vector–host cycle time varies widely). Interpret WNV plots
+# with caution.
+#
+# NOTE: HIV-1 is a chronic infection with highly variable time to onward
+# transmission. The "serial interval" here is a rough placeholder; the
+# resulting plots should be treated as illustrative only.
+```
+
+## Simulation function
+
+```{r}
+#| label: simulate-linkage-fn
+
+#' Simulate linked and unlinked genome pairs and compute P(linked | k)
+#'
+#' @param mu Substitution rate (subs/site/year)
+#' @param L Genome length (nt)
+#' @param si_mean Mean serial interval (days)
+#' @param si_sd SD of serial interval (days)
+#' @param n_pairs Number of pairs to simulate per class per replicate
+#' @param n_reps Number of independent replicates (each yields its own
+#'   P(linked|k) estimate, creating vertical spread in the plot)
+#' @param unlinked_multiplier_range Range of multipliers on si_mean for
+#'   unlinked divergence times
+#' @return A tibble with columns rep, k, prob_linked_given_k
+simulate_linkage <- function(mu, L, si_mean, si_sd,
+                             n_pairs = 1000,
+                             n_reps = 200,
+                             unlinked_multiplier_range = c(5, 50)) {
+
+  # Gamma parameters for the serial interval (in days)
+  shape <- (si_mean / si_sd)^2
+  rate  <- si_mean / si_sd^2
+
+  map_dfr(seq_len(n_reps), function(r) {
+
+    # --- Linked pairs ---
+    tau_linked    <- rgamma(n_pairs, shape = shape, rate = rate)
+    lambda_linked <- mu * L * (tau_linked / 365.25)
+    k_linked      <- rpois(n_pairs, lambda = lambda_linked)
+
+    # --- Unlinked pairs ---
+    tau_unlinked    <- runif(
+      n_pairs,
+      min = unlinked_multiplier_range[1] * si_mean,
+      max = unlinked_multiplier_range[2] * si_mean
+    )
+    lambda_unlinked <- mu * L * (tau_unlinked / 365.25)
+    k_unlinked      <- rpois(n_pairs, lambda = lambda_unlinked)
+
+    # --- P(linked | k) for this replicate ---
+    n_linked_k   <- table(factor(k_linked))
+    n_unlinked_k <- table(factor(k_unlinked))
+    all_k        <- union(names(n_linked_k), names(n_unlinked_k))
+
+    tibble(
+      k = as.integer(all_k),
+      n_linked   = as.integer(n_linked_k[all_k]),
+      n_unlinked = as.integer(n_unlinked_k[all_k])
+    ) |>
+      replace_na(list(n_linked = 0L, n_unlinked = 0L)) |>
+      mutate(
+        prob_linked_given_k = n_linked / (n_linked + n_unlinked),
+        rep = r
+      ) |>
+      select(rep, k, prob_linked_given_k)
+  })
+}
+```
+
+## Plotting function
+
+```{r}
+#| label: plot-linkage-fn
+
+#' Plot P(directly linked | k mutations) for linked-pair samples
+#'
+#' @param sim_df Output of simulate_linkage()
+#' @param title Plot title
+#' @param subtitle Plot subtitle
+#' @param k_min_display Minimum k value shown on x-axis (default 5)
+#' @return A ggplot object
+plot_linkage <- function(sim_df, title, subtitle, k_min_display = 5) {
+
+  # Show at least k_min_display on x-axis
+  n_reps  <- n_distinct(sim_df$rep)
+  k_rep_counts <- sim_df |> count(k) # number of reps that produced this k
+  k_max_data   <- max(
+    k_rep_counts$k[k_rep_counts$n >= 0.25 * n_reps],
+    na.rm = TRUE
+  )
+  # Override k_max_data
+  k_max_data <- k_min_display
+  k_max <- max(k_min_display, k_max_data)
+
+  plot_df <- sim_df |> filter(k <= k_max)
+
+  ggplot(plot_df, aes(x = k, y = prob_linked_given_k)) +
+    geom_violin(
+      aes(group = k),
+      fill = "grey80", colour = NA, alpha = 0.5,
+      scale = "width", width = 0.7
+    ) +
+    geom_jitter(
+      width = 0.2, height = 0,
+      alpha = 0.15, size = 0.5, colour = "steelblue"
+    ) +
+    geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey40") +
+    annotate(
+      "text", x = k_max * 0.85, y = 0.08,
+      label = "5% rule-out threshold",
+      size = 3, colour = "grey40"
+    ) +
+    scale_x_continuous(breaks = seq(0, k_max, by = 1)) +
+    scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    labs(
+      x        = "Mutations separating consensus genomes",
+      y        = "P(directly linked)",
+      title    = title,
+      subtitle = subtitle
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank())
+}
+```
+
+## Results
+
+```{r}
+#| label: render-plots
+#| fig.width: 7
+#| fig.height: 4.5
+#| warning: false
+#| message: false
+
+pwalk(pathogens, function(name, mu_subs_site_year, genome_length_nt,
+                          si_mean_days, si_sd_days) {
+  sim <- simulate_linkage(
+    mu      = mu_subs_site_year,
+    L       = genome_length_nt,
+    si_mean = si_mean_days,
+    si_sd   = si_sd_days
+  )
+
+  subtitle <- sprintf(
+    "\u03bc = %g subs/site/yr \u00b7 L = %s nt \u00b7 SI = %.1f \u00b1 %.1f days",
+    mu_subs_site_year,
+    format(genome_length_nt, big.mark = ","),
+    si_mean_days,
+    si_sd_days
+  )
+
+  p <- plot_linkage(sim, title = name, subtitle = subtitle)
+  print(p)
+})
+```
+
+## Modeling caveats
+
+-   The **50/50 prior on linkage** is implicit in pooling equal numbers
+    of linked and un-linked simulated pairs. Real outbreak datasets have
+    different mixing ratios, and the posterior probability shifts
+    accordingly.
+-   **Within-host diversity**, **transmission bottlenecks**, and the
+    fact that mutations accumulate on *both* sides of the MRCA are all
+    collapsed into a single Poisson draw per pair.
+-   **Serial interval ≠ generation interval**; we are conflating them
+    here for simplicity.
+-   For **vector-borne** pathogens (West Nile virus) and **chronic**
+    infections (HIV), the "serial interval" framing breaks down. Treat
+    those plots as illustrative only.
+-   A future version should add an **analytic Bayesian solution**
+    (gamma–Poisson conjugacy → negative binomial marginal) with an
+    explicit, tunable prior on linkage.
