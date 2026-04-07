@@ -58,3 +58,25 @@ Questions (from the text):
 
 ### 4.3.4 Caveats, limitations, and ways things go wrong
  - Oversampling can lead to a perceived increase in the rate of evolution, as purifying selection has not yet sufficiently purged deleterious mutations. This is fine, but it should be recognized as such. 
+
+## 4.4 Assessing how demographic, exposure, and other epidemiological data relate to a genomically defined outbreak
+ - "Much of the richness of genomic epidemiological analysis comes not simply from the analysis of genomic data alone, but rather from the integration, and joint inference, of genomic and epidemiologic data together." (Think: PulseNet.)
+
+Questions (from the text):
+ - Are different lineages of this pathogen circulating in younger people versus older people?
+ - Are different lineages of this pathogen circulating in vaccinated individuals versus unvaccinated individuals?
+ - Does outbreak size or transmission intensity appear to correlate with circulation in particular populations of individuals?
+
+
+### 4.4.1 Fundamental principles to draw upon
+ - "[Lab-epi collaboration] allows the epidemiologist to qualitatively assess potential relationships between an exposure or demographic variable and clustering patterns in the tree."
+
+### 4.4.2 How should you sample?
+ - "Do individuals from a specific [facility] tend to cluster together in clades that are genetically diverged from cases in the other [facility]?"
+ - You can do dense, targeted sequencing in these facilities and assess clustering.
+
+### 4.4.3 Tools and approaches you can use to explore the question
+ - Auspice, with metadata overlay.
+
+### 4.4.4 Caveats, limitations, and ways things go wrong
+ - Genomic-epi patterns are qualitative observations of correlation, and epis should design rigorous studies to test correlation. 
