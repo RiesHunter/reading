@@ -27,3 +27,8 @@
  - "Plasmid assembly can be hard using short read sequence data because portions of the plasmid may have sequence homology with the chromosome or even contain repeat regions within the plasmid. In addition, plasmids are often present in high copy numbers in relation to the bacterial genome."
 
 ## 8.2 A brief note about bacterial population structure
+ - "As described, genetic variation in bacteria is driven by recombination and mutation, and that variation is acted upon by selection and chance. Combined with other biological and ecological factors, these processes can shape the structure of a species or blur the boundaries between them."
+ - Unstructured ("**panmictic**") to well-structured ("**clonal**")
+ - Statistical association of loci: "**linkage disequilibrium**"
+ - "[T]he more recombination a species experiences, the more mixed it becomes, and the less structured the population."
+ - "In practice, few bacterial species are regarded as truly panmictic; _Helicobacter pylori_ and some environmental species of _Vibrio_ are included in that group. _Staphylococcus aureus_ and _Mycobacterium tuberculosis_ are canonically referred to as clonal, while most others, such as species of _Neisseria_ and _Steptococcus_, fall in the middle. When investigating a putative outbreak, it is important to have a general knowledge of the suspected species' population structure."
