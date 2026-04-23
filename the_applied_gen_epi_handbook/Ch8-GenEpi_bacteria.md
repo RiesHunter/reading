@@ -17,7 +17,7 @@
 
 #### 8.1.3.1 Plasmids
  - Usually circular dsDNA; "bonus material," as they "do not encode most essential genes."
- - "Bacteria can gain and lose plasmids, and they can harbour more than one plasmid, although certain plasmids may not be able to stably co-exist within a bacterium, a feature known as *plasmid incompatibility*."
+ - "Bacteria can gain and lose plasmids, and they can harbour more than one plasmid, although certain plasmids may not be able to stably co-exist within a bacterium, a feature known as **plasmid incompatibility**."
 
 #### 8.1.3.2 Analysis
  - Plasmid typing
